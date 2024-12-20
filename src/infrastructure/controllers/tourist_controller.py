@@ -1,25 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends
 from application.services.tourist_service import TouristService
-from application.schemas.tourist import CreateTouristRequest ,UpdatePreferencesRequest
-from domain.repositories.tourist_repository import TouristRepositoryInterface
-from infrastructure.repositories.in_memory_tourist_repository import MemoryTouristRepository
-from infrastructure.repositories.mongodb_tourist_repository import MongoDBTouristRepository
+from application.schemas.tourist import CreateTouristRequest, UpdatePreferencesRequest
+from infrastructure.config.container import get_tourist_service
 
-# Dependency Injection for Repository
-def get_repository() -> TouristRepositoryInterface:
-    # Replace with MongoDB repository if required
-    # return MongoDBTouristRepository(uri="mongodb://localhost:27017", database_name="tourism")
-    return MemoryTouristRepository()
-
-# Dependency Injection for Service
-def get_tourist_service(repository: TouristRepositoryInterface = Depends(get_repository)) -> TouristService:
-    return TouristService(repository=repository)
-
-# Use a router for modularity
 router = APIRouter()
 
 @router.post("/")
-def create_tourist(request: CreateTouristRequest, service: TouristService = Depends(get_tourist_service)):
+async def create_tourist(
+    request: CreateTouristRequest,
+    service: TouristService = Depends(get_tourist_service)
+):
     tourist = service.create_tourist(request.name, request.email)
     return {"id": tourist.id, "name": tourist.name, "email": tourist.email}
 

@@ -1,103 +1,73 @@
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-from bson import ObjectId
-from typing import Optional, List
 from domain.repositories.tourist_repository import TouristRepositoryInterface
 from domain.models.tourist import Tourist
-from domain.models.preference import Preference
+from typing import Optional, List
+import logging
+
+# Configure logging for better error tracking
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class MongoDBTouristRepository(TouristRepositoryInterface):
-    def __init__(self, uri: str, database_name: str):
-        """
-        Initialize the MongoDB repository.
-        :param uri: MongoDB connection URI.
-        :param database_name: Name of the database to use.
-        """
-        self.client = MongoClient(uri)
-        self.db = self.client[database_name]
-        self.collection = self.db["tourists"]
+    _instance = None  # Singleton instance
+
+    def __new__(cls, uri: str, database_name: str):
+        if cls._instance is None:
+            try:
+                cls._instance = super().__new__(cls)
+                cls._instance.client = MongoClient(uri)
+                cls._instance.db = cls._instance.client[database_name]
+                cls._instance.collection = cls._instance.db["tourists"]
+                logger.info(f"Connected to MongoDB database: {database_name}")
+            except PyMongoError as e:
+                logger.error(f"Failed to connect to MongoDB: {e}")
+                raise ConnectionError(f"Unable to connect to MongoDB at {uri}")
+        return cls._instance
 
     def save(self, tourist: Tourist) -> None:
-        """
-        Save or update a tourist in MongoDB.
-        :param tourist: The tourist object to save.
-        """
-        tourist_data = {
-            "name": tourist.name,
-            "email": tourist.email,
-            "preferences": vars(tourist.preferences) if tourist.preferences else None,
-        }
-
-        if tourist.id and ObjectId.is_valid(tourist.id):
-            self.collection.update_one({"_id": ObjectId(tourist.id)}, {"$set": tourist_data}, upsert=True)
-        else:
-            result = self.collection.insert_one(tourist_data)
-            tourist.id = str(result.inserted_id)
+        try:
+            self.collection.replace_one(
+                {"_id": tourist.id},
+                tourist.dict(),
+                upsert=True
+            )
+            logger.info(f"Tourist with ID {tourist.id} saved/updated.")
+        except PyMongoError as e:
+            logger.error(f"Error saving tourist with ID {tourist.id}: {e}")
+            raise Exception(f"Failed to save tourist with ID {tourist.id}")
 
     def find_by_id(self, tourist_id: str) -> Optional[Tourist]:
-        """
-        Find a tourist by their ID.
-        :param tourist_id: The ID of the tourist to find.
-        :return: The tourist object, or None if not found.
-        """
         try:
-            # Attempt to convert and search for tourist by ObjectId
-            if ObjectId.is_valid(tourist_id):
-                data = self.collection.find_one({"_id": ObjectId(tourist_id)})
+            tourist_data = self.collection.find_one({"_id": tourist_id})
+            if tourist_data:
+                logger.info(f"Tourist with ID {tourist_id} found.")
+                return Tourist(**tourist_data)
             else:
-                data = None
+                logger.warning(f"Tourist with ID {tourist_id} not found.")
+                return None
         except PyMongoError as e:
-            # Catch all MongoDB related exceptions
-            print(f"Error finding tourist by ID: {e}")
-            return None
-
-        if not data:
-            return None
-
-        tourist = Tourist(name=data["name"], email=data["email"])
-        tourist.id = str(data["_id"])
-
-        if data.get("preferences"):
-            preferences = Preference(**data["preferences"])
-            tourist.set_preferences(preferences)
-
-        return tourist
+            logger.error(f"Error retrieving tourist with ID {tourist_id}: {e}")
+            raise Exception(f"Failed to retrieve tourist with ID {tourist_id}")
 
     def delete(self, tourist_id: str) -> bool:
-        """
-        Delete a tourist by their ID.
-        :param tourist_id: The ID of the tourist to delete.
-        :return: True if the tourist was deleted, False otherwise.
-        """
         try:
-            if ObjectId.is_valid(tourist_id):
-                result = self.collection.delete_one({"_id": ObjectId(tourist_id)})
-                return result.deleted_count > 0
+            result = self.collection.delete_one({"_id": tourist_id})
+            if result.deleted_count > 0:
+                logger.info(f"Tourist with ID {tourist_id} deleted.")
+                return True
             else:
+                logger.warning(f"Tourist with ID {tourist_id} not found for deletion.")
                 return False
         except PyMongoError as e:
-            # Catch MongoDB related exceptions
-            print(f"Error deleting tourist by ID: {e}")
-            return False
+            logger.error(f"Error deleting tourist with ID {tourist_id}: {e}")
+            raise Exception(f"Failed to delete tourist with ID {tourist_id}")
 
     def list_all(self) -> List[Tourist]:
-        """
-        List all tourists in the MongoDB collection.
-        :return: A list of all tourist objects.
-        """
-        tourists = []
         try:
-            for data in self.collection.find():
-                tourist = Tourist(name=data["name"], email=data["email"])
-                tourist.id = str(data["_id"])
-
-                if data.get("preferences"):
-                    preferences = Preference(**data["preferences"])
-                    tourist.set_preferences(preferences)
-
-                tourists.append(tourist)
+            tourists = [Tourist(**doc) for doc in self.collection.find()]
+            logger.info(f"Retrieved {len(tourists)} tourists from MongoDB.")
+            return tourists
         except PyMongoError as e:
-            # Handle MongoDB-related errors during fetching the list
-            print(f"Error listing tourists: {e}")
-
-        return tourists
+            logger.error(f"Error listing all tourists: {e}")
+            raise Exception("Failed to list all tourists")

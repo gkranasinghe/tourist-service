@@ -1,0 +1,24 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: "travelapp_mongo"
+    logging:
+      options:
+        max-size: 1g
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "travelapp"
+      MONGO_INITDB_ROOT_PASSWORD: "travelapp"
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - travelapp  
+    restart: always
+
+volumes:
+  mongo_data:
+
+networks:
+  travelapp:  
+    driver: bridge

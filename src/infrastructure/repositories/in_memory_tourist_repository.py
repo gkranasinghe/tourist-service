@@ -3,11 +3,16 @@ from domain.repositories.tourist_repository import TouristRepositoryInterface
 from domain.models.tourist import Tourist
 
 class MemoryTouristRepository(TouristRepositoryInterface):
-    def __init__(self):
+    _instance = None  # Class variable to hold the singleton instance
+
+    def __new__(cls, *args, **kwargs):
         """
-        Initialize the in-memory repository with a simple dictionary.
+        Ensure only one instance of the repository exists.
         """
-        self.storage: Dict[str, Tourist] = {}
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.storage = {}  # Initialize storage on the first instance
+        return cls._instance
 
     def save(self, tourist: Tourist) -> None:
         """
