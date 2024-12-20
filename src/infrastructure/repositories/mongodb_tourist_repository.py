@@ -4,6 +4,7 @@ from domain.repositories.tourist_repository import TouristRepositoryInterface
 from domain.models.tourist import Tourist
 from typing import Optional, List
 import logging
+from uuid import uuid4
 
 # Configure logging for better error tracking
 logging.basicConfig(level=logging.INFO)
@@ -27,9 +28,12 @@ class MongoDBTouristRepository(TouristRepositoryInterface):
 
     def save(self, tourist: Tourist) -> None:
         try:
+            # Convert Tourist to dictionary, ensure '_id' is properly handled
+            tourist_dict = tourist.dict(exclude_unset=True)
+            tourist_dict["_id"] = tourist.id  # Ensure the UUID is set as the '_id'
             self.collection.replace_one(
                 {"_id": tourist.id},
-                tourist.dict(),
+                tourist_dict,
                 upsert=True
             )
             logger.info(f"Tourist with ID {tourist.id} saved/updated.")
@@ -42,7 +46,7 @@ class MongoDBTouristRepository(TouristRepositoryInterface):
             tourist_data = self.collection.find_one({"_id": tourist_id})
             if tourist_data:
                 logger.info(f"Tourist with ID {tourist_id} found.")
-                return Tourist(**tourist_data)
+                return Tourist(**tourist_data)  # Use Pydantic to handle deserialization
             else:
                 logger.warning(f"Tourist with ID {tourist_id} not found.")
                 return None

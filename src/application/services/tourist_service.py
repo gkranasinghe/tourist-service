@@ -17,7 +17,7 @@ class TouristService:
         :param email: The email of the tourist.
         :return: The created Tourist object.
         """
-        tourist = Tourist(name, email)
+        tourist = Tourist(name=name, email=email)
         self.repository.save(tourist)
         return tourist
 

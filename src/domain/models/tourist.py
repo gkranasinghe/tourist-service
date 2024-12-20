@@ -1,11 +1,19 @@
+# Tourist model with Pydantic (simple and domain-focused)
+from pydantic import BaseModel
 from uuid import uuid4
+from typing import Optional
+from domain.models.preference import Preference
 
-class Tourist:
-    def __init__(self, name: str, email: str, tourist_id: str = None):
-        self.id = tourist_id if tourist_id else str(uuid4())
-        self.name = name
-        self.email = email
-        self.preferences = None  # Will be assigned a Preference object later
+class Tourist(BaseModel):
+    id: str
+    name: str
+    email: str
+    preferences: Optional[Preference] = None
 
-    def set_preferences(self, preferences):
+    def __init__(self, **kwargs):
+        if not kwargs.get("id"):
+            kwargs["id"] = str(uuid4())
+        super().__init__(**kwargs)
+
+    def set_preferences(self, preferences: Preference):
         self.preferences = preferences
