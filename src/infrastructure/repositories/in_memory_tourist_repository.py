@@ -14,12 +14,17 @@ class MemoryTouristRepository(TouristRepositoryInterface):
             cls._instance.storage = {}  # Initialize storage on the first instance
         return cls._instance
 
-    def save(self, tourist: Tourist) -> None:
+    def save(self, tourist: Tourist) -> Tourist:
         """
         Save or update a tourist in the in-memory store.
         :param tourist: The tourist object to save.
+        :return: The saved tourist with a valid ID.
         """
+        # If the tourist doesn't have an ID, assign a unique ID (you can replace with UUID or any other unique strategy)
+        if not tourist.id:
+            tourist.id = str(len(self.storage) + 1)  # Simple unique ID generation
         self.storage[tourist.id] = tourist
+        return tourist  # Return the saved tourist object with ID
 
     def find_by_id(self, tourist_id: str) -> Optional[Tourist]:
         """
