@@ -20,6 +20,7 @@ pydantic-settings = "^2.7.0"
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.31.1"
 
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
@@ -27,4 +28,4 @@ build-backend = "poetry.core.masonry.api"
 [tool.poe.tasks]
 run = "python -m uvicorn src.main:app --reload"
 lint = "flake8 src"
-test = "pytest src/tests"  
+test = "pytest src/tests -v --tb=short"  

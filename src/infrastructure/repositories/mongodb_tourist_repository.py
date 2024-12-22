@@ -1,10 +1,11 @@
+from bson import ObjectId
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from domain.repositories.tourist_repository import TouristRepositoryInterface
 from domain.models.tourist import Tourist
 from typing import Optional, List
 import logging
-from uuid import uuid4
+from pydantic import ValidationError
 
 # Configure logging for better error tracking
 logging.basicConfig(level=logging.INFO)
@@ -26,52 +27,84 @@ class MongoDBTouristRepository(TouristRepositoryInterface):
                 raise ConnectionError(f"Unable to connect to MongoDB at {uri}")
         return cls._instance
 
-    def save(self, tourist: Tourist) -> None:
+    def close_connection(self):
+        """Close the MongoDB connection."""
+        if self.client:
+            self.client.close()
+            logger.info("MongoDB connection closed.")
+
+    def _to_mongo_document(self, tourist: Tourist) -> dict:
+        """Convert Tourist domain model to MongoDB document."""
+        document = tourist.model_dump()
+        document['_id'] = ObjectId(tourist.id) if ObjectId.is_valid(tourist.id) else ObjectId()
+        document['id'] = str(document['_id'])  # Store string ID for consistency
+        return document
+
+    def _from_mongo_document(self, document: dict) -> Optional[Tourist]:
+        """Convert MongoDB document to Tourist domain model."""
         try:
-            # Convert Tourist to dictionary, ensure '_id' is properly handled
-            tourist_dict = tourist.dict(exclude_unset=True)
-            tourist_dict["_id"] = tourist.id  # Ensure the UUID is set as the '_id'
-            self.collection.replace_one(
-                {"_id": tourist.id},
-                tourist_dict,
-                upsert=True
+            document['id'] = str(document['_id'])  # Convert ObjectId to string
+            return Tourist(**document)
+        except ValidationError as e:
+            logger.error(f"Validation error converting document: {document}, error: {e}")
+            return None
+
+    def save(self, tourist: Tourist) -> Tourist:
+        """Save or update a tourist in the database."""
+        document = self._to_mongo_document(tourist)
+        try:
+            result = self.collection.replace_one(
+                {"_id": document["_id"]}, document, upsert=True
             )
-            logger.info(f"Tourist with ID {tourist.id} saved/updated.")
+            if result.upserted_id:
+                tourist.id = str(result.upserted_id)  # New document
+                logger.info(f"New tourist created with ID {tourist.id}.")
+            else:
+                logger.info(f"Tourist with ID {tourist.id} updated.")
+            return tourist
         except PyMongoError as e:
-            logger.error(f"Error saving tourist with ID {tourist.id}: {e}")
-            raise Exception(f"Failed to save tourist with ID {tourist.id}")
+            logger.error(f"Error saving tourist: {e}")
+            raise RuntimeError(f"Failed to save tourist: {e}")
 
     def find_by_id(self, tourist_id: str) -> Optional[Tourist]:
+        """Find a tourist by their ID."""
         try:
-            tourist_data = self.collection.find_one({"_id": tourist_id})
+            if not ObjectId.is_valid(tourist_id):
+                logger.error(f"Invalid tourist ID: {tourist_id}")
+                return None
+            tourist_data = self.collection.find_one({"_id": ObjectId(tourist_id)})
             if tourist_data:
                 logger.info(f"Tourist with ID {tourist_id} found.")
-                return Tourist(**tourist_data)  # Use Pydantic to handle deserialization
-            else:
-                logger.warning(f"Tourist with ID {tourist_id} not found.")
-                return None
+                return self._from_mongo_document(tourist_data)
+            logger.warning(f"Tourist with ID {tourist_id} not found.")
+            return None
         except PyMongoError as e:
             logger.error(f"Error retrieving tourist with ID {tourist_id}: {e}")
-            raise Exception(f"Failed to retrieve tourist with ID {tourist_id}")
+            raise RuntimeError(f"Failed to retrieve tourist with ID {tourist_id}")
 
     def delete(self, tourist_id: str) -> bool:
+        """Delete a tourist by their ID."""
         try:
-            result = self.collection.delete_one({"_id": tourist_id})
+            if not ObjectId.is_valid(tourist_id):
+                logger.error(f"Invalid tourist ID: {tourist_id}")
+                return False
+            result = self.collection.delete_one({"_id": ObjectId(tourist_id)})
             if result.deleted_count > 0:
                 logger.info(f"Tourist with ID {tourist_id} deleted.")
                 return True
-            else:
-                logger.warning(f"Tourist with ID {tourist_id} not found for deletion.")
-                return False
+            logger.warning(f"Tourist with ID {tourist_id} not found for deletion.")
+            return False
         except PyMongoError as e:
             logger.error(f"Error deleting tourist with ID {tourist_id}: {e}")
-            raise Exception(f"Failed to delete tourist with ID {tourist_id}")
+            raise RuntimeError(f"Failed to delete tourist with ID {tourist_id}")
 
     def list_all(self) -> List[Tourist]:
+        """List all tourists in the database."""
         try:
-            tourists = [Tourist(**doc) for doc in self.collection.find()]
+            cursor = self.collection.find()
+            tourists = [self._from_mongo_document(doc) for doc in cursor]
             logger.info(f"Retrieved {len(tourists)} tourists from MongoDB.")
             return tourists
         except PyMongoError as e:
             logger.error(f"Error listing all tourists: {e}")
-            raise Exception("Failed to list all tourists")
+            raise RuntimeError("Failed to list all tourists")
