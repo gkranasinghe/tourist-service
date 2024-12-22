@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from domain.repositories.tourist_repository import TouristRepositoryInterface
 from domain.models.tourist import Tourist
+from infrastructure.config.config import AppConfig
 from typing import Optional, List
 import logging
 from pydantic import ValidationError
@@ -14,17 +15,17 @@ logger = logging.getLogger(__name__)
 class MongoDBTouristRepository(TouristRepositoryInterface):
     _instance = None  # Singleton instance
 
-    def __new__(cls, uri: str, database_name: str):
+    def __new__(cls, config: AppConfig):
         if cls._instance is None:
             try:
                 cls._instance = super().__new__(cls)
-                cls._instance.client = MongoClient(uri)
-                cls._instance.db = cls._instance.client[database_name]
+                cls._instance.client = MongoClient(config.mongo_uri)
+                cls._instance.db = cls._instance.client[config.mongo_database]
                 cls._instance.collection = cls._instance.db["tourists"]
-                logger.info(f"Connected to MongoDB database: {database_name}")
+                logger.info(f"Connected to MongoDB database: {config.mongo_database}")
             except PyMongoError as e:
                 logger.error(f"Failed to connect to MongoDB: {e}")
-                raise ConnectionError(f"Unable to connect to MongoDB at {uri}")
+                raise ConnectionError(f"Unable to connect to MongoDB at {config.mongo_uri}")
         return cls._instance
 
     def close_connection(self):

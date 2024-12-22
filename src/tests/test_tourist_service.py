@@ -2,17 +2,27 @@ import pytest
 from domain.models.tourist import Tourist
 from domain.models.preference import Preference
 from infrastructure.repositories.mongodb_tourist_repository import MongoDBTouristRepository
+from infrastructure.config.config import AppConfig
 from bson import ObjectId
 
+@pytest.fixture(scope="module")
+def test_config():
+    return AppConfig(
+        mongo_username="llm_engineering",
+        mongo_password="llm_engineering",
+        mongo_host="localhost",
+        mongo_port=27017,
+        mongo_database="test_db"
+    )
 
 @pytest.fixture(scope="module")
-def test_repository():
-    # Use a test MongoDB URI (e.g., MongoDB Atlas or a local test DB)
-    # The 'scope="module"' ensures that the test repository is created only once per test module
-    repo = MongoDBTouristRepository(uri="mongodb://llm_engineering:llm_engineering@localhost:27017", database_name="test_db")
+def test_repository(test_config):
+    repo = MongoDBTouristRepository(config=test_config)
     repo.collection.delete_many({})  # Clear the test collection before the tests start
     yield repo
     repo.collection.delete_many({})  # Cleanup after tests complete
+
+
 
 
 def test_save_find_list_delete_tourist(test_repository):
@@ -50,8 +60,8 @@ def test_save_find_list_delete_tourist(test_repository):
 
 def test_mongo_singleton():
     # Ensure Singleton pattern works by checking if two instances of the repo are the same
-    repo1 = MongoDBTouristRepository(uri="mongodb://localhost:27017", database_name="test_db")
-    repo2 = MongoDBTouristRepository(uri="mongodb://localhost:27017", database_name="test_db")
+    repo1 = MongoDBTouristRepository(config=test_config)
+    repo2 = MongoDBTouristRepository(config=test_config)
 
     # Both repositories should be the same instance
     assert repo1 is repo2
