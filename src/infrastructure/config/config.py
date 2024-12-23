@@ -1,6 +1,15 @@
 import os
+import logging
 from pydantic_settings import BaseSettings
 from pydantic import  ConfigDict
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    format="%(levelname)s %(asctime)s %(message)s",
+    level=logging.DEBUG  # Adjust this to INFO, WARNING, etc., as needed
+)
+
 
 class AppConfig(BaseSettings):
     app_env: str = "development"  # Default to 'development' if not set
@@ -20,7 +29,12 @@ class AppConfig(BaseSettings):
 
 # Usage Example
 config = AppConfig()  # This will read directly from environment variables
-print("Config:", config)
+
+try:
+    config = AppConfig()  # This will read directly from environment variables
+    logger.info(f"Loaded configuration: {config}")
+except Exception as e:
+    logger.error(f"Error loading configuration: {e}")
 
 
 
