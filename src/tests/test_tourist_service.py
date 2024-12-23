@@ -12,6 +12,7 @@ from unittest.mock import patch
 @pytest.fixture(scope="module")
 def test_config():
     return AppConfig(
+        database_type="mongo",
         mongo_username="llm_engineering",
         mongo_password="llm_engineering",
         mongo_host="localhost",
