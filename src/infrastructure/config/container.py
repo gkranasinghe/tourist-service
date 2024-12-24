@@ -35,3 +35,11 @@ def get_tourist_service(
     if tourist_service_cache is None:
         tourist_service_cache = TouristService(repository=repository)
     return tourist_service_cache
+
+def shutdown_repository():
+    """
+    Clean up resources used by repositories.
+    """
+    global repository_cache
+    if repository_cache and isinstance(repository_cache, MongoDBTouristRepository):
+        repository_cache.close_connection()

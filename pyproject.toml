@@ -26,6 +26,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poe.tasks]
-run = "python -m uvicorn src.main:app --reload"
+run = "python -m uvicorn src.main:app --reload --lifespan on"
 lint = "flake8 src"
 test = "pytest src/tests -v --tb=short"  
+

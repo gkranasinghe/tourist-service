@@ -4,13 +4,7 @@ from pydantic_settings import BaseSettings
 from pydantic import  ConfigDict
 
 # Configure logger for this module
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(levelname)s %(asctime)s %(message)s",
-    level=logging.DEBUG  # Adjust this to INFO, WARNING, etc., as needed
-)
-
-
+logger = logging.getLogger("tourist-service")
 class AppConfig(BaseSettings):
     app_env: str = "development"  # Default to 'development' if not set
     database_type: str = "mongo"

@@ -4,7 +4,7 @@ from domain.repositories.tourist_repository import TouristRepositoryInterface
 from domain.models.tourist import Tourist
 
 # Configure logger for this module
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("tourist-service")
 
 class MemoryTouristRepository(TouristRepositoryInterface):
     _instance = None  # Class variable to hold the singleton instance

@@ -8,9 +8,8 @@ from typing import Optional, List
 import logging
 from pydantic import ValidationError
 
-# Configure logging for better error tracking
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("tourist-service")
+
 
 class MongoDBTouristRepository(TouristRepositoryInterface):
     _instance = None  # Singleton instance
